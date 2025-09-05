@@ -201,24 +201,14 @@ export default function BitacoraForm({ onSubmit, initialData, isEditing = false 
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent className="scrollable-dropdown">
-                    <SelectItem value="ANGIE NATALIA SANTANA ROJAS">ANGIE NATALIA SANTANA ROJAS</SelectItem>
-                    <SelectItem value="ASHLY CAICEDO">ASHLY CAICEDO</SelectItem>
-                    <SelectItem value="BRAYAN STEBAN BRAVO MOSQUERA">BRAYAN STEBAN BRAVO MOSQUERA</SelectItem>
-                    <SelectItem value="DIANA MARULANDA">DIANA MARULANDA</SelectItem>
-                    <SelectItem value="EDUARD LUBO URBANO">EDUARD LUBO URBANO</SelectItem>
-                    <SelectItem value="EDWIN PORTELA">EDWIN PORTELA</SelectItem>
-                    <SelectItem value="FRANCISCO EMERSON CASTAÑEDA RAMIREZ">
-                      FRANCISCO EMERSON CASTAÑEDA RAMIREZ
-                    </SelectItem>
+                    <SelectItem value="LAURA MOURE">LAURA MOURE</SelectItem>
+                    <SelectItem value="XIMENA">XIMENA</SelectItem>
+                    <SelectItem value="LAURA CECILIA">LAURA CECILIA</SelectItem>
+                    <SelectItem value="PATIÑO">PATIÑO</SelectItem>
+                    <SelectItem value="JUAN QUINTERO">JUAN QUINTERO</SelectItem>
+                    <SelectItem value="DANIEL">DANIEL</SelectItem>
+                    <SelectItem value="SERGIO CASAS">SERGIO CASAS</SelectItem>
                     <SelectItem value="FARUCK DAVID MEZU MINA">FARUCK DAVID MEZU MINA</SelectItem>
-                    <SelectItem value="IVÁN FERNANDO VASQUEZ MANCILLA">IVÁN FERNANDO VASQUEZ MANCILLA</SelectItem>
-                    <SelectItem value="JUAN JOSE QUINTERO">JUAN JOSE QUINTERO</SelectItem>
-                    <SelectItem value="JUAN DAVID ARANGO QUINTERO">JUAN DAVID ARANGO QUINTERO</SelectItem>
-                    <SelectItem value="JUAN SEBASTIAN GARCIA">JUAN SEBASTIAN GARCIA</SelectItem>
-                    <SelectItem value="KERELYN GRUTIERREZ VENECIA">KERELYN GRUTIERREZ VENECIA</SelectItem>
-                    <SelectItem value="MARCOS AMILKAR MURILLO AGAMEZ">MARCOS AMILKAR MURILLO AGAMEZ</SelectItem>
-                    <SelectItem value="SANTIAGO FERNANDO NACED ROQUE">SANTIAGO FERNANDO NACED ROQUE</SelectItem>
-                    <SelectItem value="ROBER ANDREY HERNANDEZ RAMOS">ROBER ANDREY HERNANDEZ RAMOS</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
