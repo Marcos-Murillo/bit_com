@@ -37,6 +37,7 @@ const nombres = [
   "DANIEL",
   "SERGIO CASAS",
   "MARCOS",
+  "SANTIAGO GUZMAN",
 ]
 
 // Coordenadas de referencia y rango permitido
