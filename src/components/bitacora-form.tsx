@@ -159,26 +159,13 @@ export default function BitacoraForm({ onSubmit, initialData, isEditing = false 
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent className="scrollable-dropdown">
-                    <SelectItem value="capacitacion">CAPACITACION</SelectItem>
-                    <SelectItem value="convocatoria">CONVOCATORIA</SelectItem>
-                    <SelectItem value="correo_electronico">CORREO ELECTRONICO</SelectItem>
-                    <SelectItem value="estadistica_participacion">ESTISTICA DE PARTICIPACION</SelectItem>
-                    <SelectItem value="eventos">EVENTOS</SelectItem>
-                    <SelectItem value="formulario">FORMULARIO</SelectItem>
-                    <SelectItem value="informe">INFORME</SelectItem>
-                    <SelectItem value="ofimatica">OFIMATICA</SelectItem>
-                    <SelectItem value="participacion">PARTICIPACION</SelectItem>
-                    <SelectItem value="prestamo">PRESTAMO</SelectItem>
-                    <SelectItem value="prestamo_equipos_sonido">PRESTAMO DE EQUIPOS DE SONIDO</SelectItem>
-                    <SelectItem value="propuesta">PROPUESTA</SelectItem>
-                    <SelectItem value="publicacion_redes">PUBLICACION EN REDES SOCIALES</SelectItem>
-                    <SelectItem value="reunion">REUNION</SelectItem>
-                    <SelectItem value="solicitud">SOLICITUD</SelectItem>
-                    <SelectItem value="tareas_bodega">TAREAS DE BODEGA</SelectItem>
-                    <SelectItem value="tareas_oficina">TAREAS GENERALES DE OFICINA</SelectItem>
-                    <SelectItem value="uniformes">UNIFORMES</SelectItem>
-                    <SelectItem value="ficha_tecnica">FICHA TECNICA</SelectItem>
-                    <SelectItem value="estudio_de_mercado">ESTUDIO DE MERCADO</SelectItem>
+                    <SelectItem value="cubrimiento">CUBRIMIENTO</SelectItem>
+                    <SelectItem value="edicion">EDICION</SelectItem>
+                    <SelectItem value="GRABACION">GRABACION</SelectItem>
+                    <SelectItem value="DIBUJO">DIBUJO</SelectItem>
+                    <SelectItem value="GUION">GUION</SelectItem>
+                    <SelectItem value="PUBLICACIONES">PUBLICACIONES</SelectItem>
+                    <SelectItem value="TRANSMICIONES">TRANSMICIONES</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
