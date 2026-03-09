@@ -1,12 +1,20 @@
 "use client"
 
 import { format } from "date-fns"
-import { CheckCircle, XCircle, Edit, ChevronLeft, ChevronRight } from "lucide-react"
+import { CheckCircle, XCircle, Edit, ChevronLeft, ChevronRight, MoreVertical } from "lucide-react"
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table"
 import { Badge } from "../components/ui/badge"
 import { Button } from "../components/ui/button"
-import { useState } from "react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../components/ui/dropdown-menu"
+import { useState, useEffect } from "react"
 import type { BitacoraEntry } from "../types/bitacora"
+import { getAllCategorias } from "../firebase/responsable-service"
+import type { Categoria } from "../types/responsable"
 
 interface BitacoraTableProps {
   entries: BitacoraEntry[]
@@ -16,8 +24,23 @@ interface BitacoraTableProps {
 
 export default function BitacoraTable({ entries, onToggleComplete, onEdit }: BitacoraTableProps) {
   const [currentPage, setCurrentPage] = useState(1)
+  const [categorias, setCategorias] = useState<Categoria[]>([])
   const itemsPerPage = 13
   const totalPages = Math.ceil(entries.length / itemsPerPage)
+
+  // Cargar categorías desde Firebase
+  useEffect(() => {
+    const loadCategorias = async () => {
+      try {
+        const data = await getAllCategorias()
+        setCategorias(data)
+      } catch (error) {
+        console.error("Error al cargar categorías:", error)
+      }
+    }
+
+    loadCategorias()
+  }, [])
 
   // Obtener entradas para la página actual
   const getCurrentEntries = () => {
@@ -52,6 +75,13 @@ export default function BitacoraTable({ entries, onToggleComplete, onEdit }: Bit
   }
 
   const getCategoryLabel = (category: string) => {
+    // Buscar en las categorías cargadas desde Firebase
+    const categoriaEncontrada = categorias.find((cat) => cat.valor === category)
+    if (categoriaEncontrada) {
+      return categoriaEncontrada.nombre
+    }
+
+    // Fallback a las categorías hardcoded si no se encuentra
     const labels: Record<string, string> = {
       capacitacion: "CAPACITACION",
       convocatoria: "CONVOCATORIA",
@@ -71,22 +101,28 @@ export default function BitacoraTable({ entries, onToggleComplete, onEdit }: Bit
       tareas_bodega: "TAREAS DE BODEGA",
       tareas_oficina: "TAREAS GENERALES DE OFICINA",
       uniformes: "UNIFORMES",
+      cubrimiento: "CUBRIMIENTO",
+      edicion: "EDICION",
+      grabacion: "GRABACION",
+      dibujo: "DIBUJO",
+      guion: "GUION",
+      publicaciones: "PUBLICACIONES",
+      transmiciones: "TRANSMICIONES",
     }
 
-    return labels[category] || category
+    return labels[category] || category.toUpperCase()
   }
-
-  // Determinar si mostrar las columnas de acción
-  const showToggleColumn = !!onToggleComplete
-  const showEditColumn = !!onEdit
 
   // Verificar si una tarea está vencida (fecha de entrega pasada y no completada)
   const isOverdue = (entry: BitacoraEntry) => {
     return !entry.completada && new Date(entry.fechaEntrega) < new Date()
   }
 
+  // Determinar si mostrar la columna de acciones
+  const showActionsColumn = !!onToggleComplete || !!onEdit
+
   return (
-    <div className="rounded-md border">
+    <div className="rounded-md border overflow-visible">
       <div className="overflow-x-auto">
         <Table>
           <TableCaption>Lista de registros en la bitácora</TableCaption>
@@ -98,15 +134,14 @@ export default function BitacoraTable({ entries, onToggleComplete, onEdit }: Bit
               <TableHead className="w-[180px]">Responsable</TableHead>
               <TableHead className="w-[150px]">Categoría</TableHead>
               <TableHead className="w-[120px]">Estado</TableHead>
-              {showToggleColumn && <TableHead className="w-[150px]">Completar</TableHead>}
-              {showEditColumn && <TableHead className="w-[100px]">Editar</TableHead>}
+              {showActionsColumn && <TableHead className="w-[80px] text-center">Acciones</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {getCurrentEntries().length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={showToggleColumn && showEditColumn ? 8 : showToggleColumn || showEditColumn ? 7 : 6}
+                  colSpan={showActionsColumn ? 7 : 6}
                   className="text-center py-6 text-muted-foreground"
                 >
                   No hay registros que coincidan con los filtros aplicados
@@ -152,22 +187,46 @@ export default function BitacoraTable({ entries, onToggleComplete, onEdit }: Bit
                       </span>
                     )}
                   </TableCell>
-                  {showToggleColumn && (
-                    <TableCell>
-                      <Button
-                        variant={entry.completada ? "outline" : "default"}
-                        size="sm"
-                        onClick={() => onToggleComplete(entry.id)}
-                      >
-                        {entry.completada ? "Marcar pendiente" : "Marcar completada"}
-                      </Button>
-                    </TableCell>
-                  )}
-                  {showEditColumn && (
-                    <TableCell>
-                      <Button variant="outline" size="sm" onClick={() => onEdit(entry)} className="flex items-center">
-                        <Edit className="h-4 w-4 mr-1" /> Editar
-                      </Button>
+                  {showActionsColumn && (
+                    <TableCell className="text-center">
+                      <DropdownMenu modal={false}>
+                        <DropdownMenuTrigger asChild>
+                          <button 
+                            className="inline-flex items-center justify-center h-8 w-8 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-400"
+                            type="button"
+                            aria-label="Abrir menú de acciones"
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48" sideOffset={5}>
+                          {onEdit && (
+                            <DropdownMenuItem 
+                              onSelect={() => onEdit(entry)}
+                            >
+                              <Edit className="h-4 w-4 mr-2" />
+                              Editar
+                            </DropdownMenuItem>
+                          )}
+                          {onToggleComplete && (
+                            <DropdownMenuItem 
+                              onSelect={() => onToggleComplete(entry.id)}
+                            >
+                              {entry.completada ? (
+                                <>
+                                  <XCircle className="h-4 w-4 mr-2" />
+                                  Marcar pendiente
+                                </>
+                              ) : (
+                                <>
+                                  <CheckCircle className="h-4 w-4 mr-2" />
+                                  Marcar completada
+                                </>
+                              )}
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   )}
                 </TableRow>

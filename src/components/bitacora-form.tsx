@@ -9,7 +9,10 @@ import { Input } from "../components/ui/input"
 import { Textarea } from "../components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select"
 import type { BitacoraEntry } from "../types/bitacora"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
+import { getAllResponsables, getAllCategorias } from "../firebase/responsable-service"
+import type { Responsable, Categoria } from "../types/responsable"
+import { Loader2 } from "lucide-react"
 
 const formSchema = z.object({
   fecha: z.string().min(1, { message: "La fecha es requerida" }),
@@ -40,6 +43,10 @@ export default function BitacoraForm({ onSubmit, initialData, isEditing = false 
   const nextWeek = new Date(today)
   nextWeek.setDate(today.getDate() + 7)
 
+  const [responsables, setResponsables] = useState<Responsable[]>([])
+  const [categorias, setCategorias] = useState<Categoria[]>([])
+  const [loading, setLoading] = useState(true)
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -52,6 +59,24 @@ export default function BitacoraForm({ onSubmit, initialData, isEditing = false 
       completada: false,
     },
   })
+
+  // Cargar responsables y categorías desde Firebase
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true)
+        const [responsablesData, categoriasData] = await Promise.all([getAllResponsables(), getAllCategorias()])
+        setResponsables(responsablesData)
+        setCategorias(categoriasData)
+      } catch (error) {
+        console.error("Error al cargar datos:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadData()
+  }, [])
 
   // Cargar datos iniciales si estamos editando
   useEffect(() => {
@@ -67,6 +92,14 @@ export default function BitacoraForm({ onSubmit, initialData, isEditing = false 
       })
     }
   }, [initialData, isEditing, form])
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-8">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    )
+  }
 
   function handleSubmit(values: z.infer<typeof formSchema>) {
     // Convertir las fechas de string a Date
@@ -159,13 +192,17 @@ export default function BitacoraForm({ onSubmit, initialData, isEditing = false 
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent className="scrollable-dropdown">
-                    <SelectItem value="cubrimiento">CUBRIMIENTO</SelectItem>
-                    <SelectItem value="edicion">EDICION</SelectItem>
-                    <SelectItem value="GRABACION">GRABACION</SelectItem>
-                    <SelectItem value="DIBUJO">DIBUJO</SelectItem>
-                    <SelectItem value="GUION">GUION</SelectItem>
-                    <SelectItem value="PUBLICACIONES">PUBLICACIONES</SelectItem>
-                    <SelectItem value="TRANSMICIONES">TRANSMICIONES</SelectItem>
+                    {categorias.length === 0 ? (
+                      <div className="px-2 py-4 text-sm text-gray-500 text-center">
+                        No hay categorías disponibles
+                      </div>
+                    ) : (
+                      categorias.map((categoria) => (
+                        <SelectItem key={categoria.id} value={categoria.valor}>
+                          {categoria.nombre}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -188,15 +225,17 @@ export default function BitacoraForm({ onSubmit, initialData, isEditing = false 
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent className="scrollable-dropdown">
-                    <SelectItem value="LAURA MOURE">LAURA MOURE</SelectItem>
-                    <SelectItem value="XIMENA">XIMENA</SelectItem>
-                    <SelectItem value="LAURA CECILIA">LAURA CECILIA</SelectItem>
-                    <SelectItem value="PATIÑO">PATIÑO</SelectItem>
-                    <SelectItem value="JUAN QUINTERO">JUAN QUINTERO</SelectItem>
-                    <SelectItem value="DANIEL">DANIEL</SelectItem>
-                    <SelectItem value="SERGIO CASAS">SERGIO CASAS</SelectItem>
-                    <SelectItem value="SANTIAGO GUZMAN">SANTIAGO GUZMAN</SelectItem>
-                    <SelectItem value="GISSEL">GISSEL</SelectItem>
+                    {responsables.length === 0 ? (
+                      <div className="px-2 py-4 text-sm text-gray-500 text-center">
+                        No hay responsables disponibles
+                      </div>
+                    ) : (
+                      responsables.map((responsable) => (
+                        <SelectItem key={responsable.id} value={responsable.nombre}>
+                          {responsable.nombre}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
                 <FormMessage />

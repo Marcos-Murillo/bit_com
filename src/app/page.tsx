@@ -1,8 +1,11 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { useAuth } from "../contexts/AuthContext"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
+import { Button } from "../components/ui/button"
 import { toast } from "sonner"
 import BitacoraForm from "../components/bitacora-form"
 import BitacoraTable from "../components/bitacora-table"
@@ -18,60 +21,68 @@ import {
   addEntry as addEntryToFirebase,
   toggleEntryComplete,
   getFilteredEntries,
-  getUniqueResponsables,
   updateEntry,
 } from "../firebase/bitacora-service"
 import { getAllAsistencias, addAsistencia } from "../firebase/asistencia-service"
+import { getAllResponsables, getAllCategorias } from "../firebase/responsable-service"
+import { LogIn, Settings, Shield } from "lucide-react"
 
 export default function BitacoraPage() {
+  const { user, logout, isLoading } = useAuth()
+  const router = useRouter()
   const [entries, setEntries] = useState<BitacoraEntry[]>([])
   const [filteredEntries, setFilteredEntries] = useState<BitacoraEntry[]>([])
   const [asistencias, setAsistencias] = useState<AsistenciaEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [loadingAsistencias, setLoadingAsistencias] = useState(true)
   const [responsables, setResponsables] = useState<string[]>([])
-  const [activeTab, setActiveTab] = useState("form")
+  const [activeTab, setActiveTab] = useState("entries")
   const [editingEntry, setEditingEntry] = useState<BitacoraEntry | null>(null)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
 
-  // Cargar entradas desde Firebase al iniciar
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true)
-        const [data, uniqueResponsables] = await Promise.all([getAllEntries(), getUniqueResponsables()])
+  // Determinar permisos según rol
+  const isGuest = !user
+  const isAdmin = user?.role === "admin"
+  const isSuperAdmin = user?.role === "superadmin"
+  const hasFullAccess = isAdmin || isSuperAdmin
 
-        setEntries(data)
-        setFilteredEntries(data)
-        setResponsables(uniqueResponsables)
-      } catch (error) {
-        console.error("Error al cargar datos:", error)
-        toast.error("No se pudieron cargar los datos")
-      } finally {
-        setLoading(false)
+  useEffect(() => {
+    if (!isLoading) {
+      fetchData()
+      if (hasFullAccess) {
+        fetchAsistencias()
       }
     }
+  }, [isLoading, hasFullAccess])
 
-    fetchData()
-  }, [])
+  const fetchData = async () => {
+    try {
+      setLoading(true)
+      const [data, responsablesData] = await Promise.all([getAllEntries(), getAllResponsables()])
 
-  // Cargar asistencias desde Firebase
-  useEffect(() => {
-    const fetchAsistencias = async () => {
-      try {
-        setLoadingAsistencias(true)
-        const data = await getAllAsistencias()
-        setAsistencias(data)
-      } catch (error) {
-        console.error("Error al cargar asistencias:", error)
-        toast.error("No se pudieron cargar las asistencias")
-      } finally {
-        setLoadingAsistencias(false)
-      }
+      setEntries(data)
+      setFilteredEntries(data)
+      setResponsables(responsablesData.map((r) => r.nombre))
+    } catch (error) {
+      console.error("Error al cargar datos:", error)
+      toast.error("No se pudieron cargar los datos")
+    } finally {
+      setLoading(false)
     }
+  }
 
-    fetchAsistencias()
-  }, [])
+  const fetchAsistencias = async () => {
+    try {
+      setLoadingAsistencias(true)
+      const data = await getAllAsistencias()
+      setAsistencias(data)
+    } catch (error) {
+      console.error("Error al cargar asistencias:", error)
+      toast.error("No se pudieron cargar las asistencias")
+    } finally {
+      setLoadingAsistencias(false)
+    }
+  }
 
   const addEntry = async (entry: Omit<BitacoraEntry, "id">) => {
     try {
@@ -82,11 +93,9 @@ export default function BitacoraPage() {
         id,
       } as BitacoraEntry
 
-      // Actualizar el estado local con la nueva entrada
       setEntries((prevEntries) => [newEntry, ...prevEntries])
       setFilteredEntries((prevEntries) => [newEntry, ...prevEntries])
 
-      // Actualizar responsables si es necesario
       if (!responsables.includes(entry.responsable)) {
         setResponsables((prev) => [...prev, entry.responsable].sort())
       }
@@ -107,7 +116,6 @@ export default function BitacoraPage() {
         id,
       } as AsistenciaEntry
 
-      // Actualizar el estado local con la nueva entrada
       setAsistencias((prevEntries) => [newEntry, ...prevEntries])
 
       toast.success("Asistencia registrada correctamente")
@@ -119,21 +127,16 @@ export default function BitacoraPage() {
 
   const handleToggleComplete = async (id: string) => {
     try {
-      // Encontrar la entrada actual y su estado
       const entry = entries.find((e) => e.id === id)
       if (!entry) return
 
-      // Actualizar en Firebase
       await toggleEntryComplete(id, !entry.completada)
 
-      // Actualizar el estado local
       const updatedEntries = entries.map((entry) =>
         entry.id === id ? { ...entry, completada: !entry.completada } : entry,
       )
 
       setEntries(updatedEntries)
-
-      // También actualizar las entradas filtradas
       setFilteredEntries((prevFiltered) =>
         prevFiltered.map((entry) => (entry.id === id ? { ...entry, completada: !entry.completada } : entry)),
       )
@@ -150,12 +153,18 @@ export default function BitacoraPage() {
     setIsEditDialogOpen(true)
   }
 
+  const handleCloseDialog = () => {
+    setIsEditDialogOpen(false)
+    // Pequeño delay para asegurar que el diálogo se cierre completamente
+    setTimeout(() => {
+      setEditingEntry(null)
+    }, 100)
+  }
+
   const handleUpdateEntry = async (updatedEntry: BitacoraEntry) => {
     try {
-      // Actualizar en Firebase
       await updateEntry(updatedEntry)
 
-      // Actualizar el estado local
       const updatedEntries = entries.map((entry) => (entry.id === updatedEntry.id ? updatedEntry : entry))
 
       setEntries(updatedEntries)
@@ -163,8 +172,7 @@ export default function BitacoraPage() {
         prevFiltered.map((entry) => (entry.id === updatedEntry.id ? updatedEntry : entry)),
       )
 
-      setIsEditDialogOpen(false)
-      setEditingEntry(null)
+      handleCloseDialog()
       toast.success("Registro actualizado correctamente")
     } catch (error) {
       console.error("Error al actualizar entrada:", error)
@@ -172,7 +180,6 @@ export default function BitacoraPage() {
     }
   }
 
-  // Verificar si una tarea está vencida (fecha de entrega pasada y no completada)
   const isOverdue = (entry: BitacoraEntry) => {
     return !entry.completada && new Date(entry.fechaEntrega) < new Date()
   }
@@ -182,10 +189,8 @@ export default function BitacoraPage() {
       setLoading(true)
 
       if (!responsable && !estado && !vencidas) {
-        // Si no hay filtros, mostrar todas las entradas
         setFilteredEntries(entries)
       } else {
-        // Filtrar localmente si ya tenemos los datos
         if (entries.length > 0) {
           let filtered = [...entries]
 
@@ -203,9 +208,7 @@ export default function BitacoraPage() {
 
           setFilteredEntries(filtered)
         } else {
-          // O consultar a Firebase si es necesario
           const filtered = await getFilteredEntries(responsable, estado)
-          // Aplicar filtro de vencidas localmente
           setFilteredEntries(vencidas ? filtered.filter(isOverdue) : filtered)
         }
       }
@@ -217,35 +220,73 @@ export default function BitacoraPage() {
     }
   }
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-white">
       <div className="container mx-auto py-6 px-2 flex flex-col min-h-screen">
-        <h1 className="text-3xl font-bold mb-6 text-center">Sistema de Gestión</h1>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-3xl font-bold">Sistema de Gestión</h1>
+          <div className="flex items-center gap-2">
+            {isGuest ? (
+              <Button onClick={() => router.push("/login")} variant="outline">
+                <LogIn className="h-4 w-4 mr-2" />
+                Iniciar Sesión
+              </Button>
+            ) : (
+              <>
+                {isSuperAdmin && (
+                  <Button onClick={() => router.push("/superadmin")} variant="outline">
+                    <Shield className="h-4 w-4 mr-2" />
+                    Super Admin
+                  </Button>
+                )}
+                {isAdmin && (
+                  <Button onClick={() => router.push("/admin")} variant="outline">
+                    <Settings className="h-4 w-4 mr-2" />
+                    Administrar
+                  </Button>
+                )}
+                <Button onClick={logout} variant="outline">
+                  Cerrar Sesión
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
 
         <Tabs
-          defaultValue="form"
+          defaultValue="entries"
           value={activeTab}
           onValueChange={setActiveTab}
           className="w-full flex-grow flex flex-col"
         >
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="form">Nuevo Registro</TabsTrigger>
+          <TabsList className={`grid w-full ${hasFullAccess ? "grid-cols-4" : "grid-cols-1"}`}>
+            {hasFullAccess && <TabsTrigger value="form">Nuevo Registro</TabsTrigger>}
             <TabsTrigger value="entries">Ver Registros</TabsTrigger>
-            <TabsTrigger value="stats">Estadísticas</TabsTrigger>
-            <TabsTrigger value="asistencia">Asistencia</TabsTrigger>
+            {hasFullAccess && <TabsTrigger value="stats">Estadísticas</TabsTrigger>}
+            {hasFullAccess && <TabsTrigger value="asistencia">Asistencia</TabsTrigger>}
           </TabsList>
 
-          <TabsContent value="form" className="flex-grow">
-            <Card className="h-full">
-              <CardHeader>
-                <CardTitle>Nuevo Registro en Bitácora</CardTitle>
-                <CardDescription>Complete el formulario para añadir un nuevo registro a la bitácora.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <BitacoraForm onSubmit={addEntry} />
-              </CardContent>
-            </Card>
-          </TabsContent>
+          {hasFullAccess && (
+            <TabsContent value="form" className="flex-grow">
+              <Card className="h-full">
+                <CardHeader>
+                  <CardTitle>Nuevo Registro en Bitácora</CardTitle>
+                  <CardDescription>Complete el formulario para añadir un nuevo registro a la bitácora.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <BitacoraForm onSubmit={addEntry} />
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
 
           <TabsContent value="entries" className="flex-grow">
             <Card className="h-full flex flex-col">
@@ -264,8 +305,8 @@ export default function BitacoraPage() {
                   <div className="flex-grow">
                     <BitacoraTable
                       entries={filteredEntries}
-                      onToggleComplete={handleToggleComplete}
-                      onEdit={handleEdit}
+                      onToggleComplete={hasFullAccess ? handleToggleComplete : undefined}
+                      onEdit={hasFullAccess ? handleEdit : undefined}
                     />
                   </div>
                 )}
@@ -273,58 +314,66 @@ export default function BitacoraPage() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="stats" className="flex-grow">
-            <Card className="h-full">
-              {loading ? (
-                <div className="flex justify-center py-8">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-                </div>
-              ) : (
-                <BitacoraStats entries={entries} />
-              )}
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="asistencia" className="flex-grow">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Registrar Asistencia</CardTitle>
-                  <CardDescription>Registre la asistencia seleccionando el nombre, fecha y hora.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <AsistenciaForm onSubmit={addAsistenciaEntry} />
-                </CardContent>
+          {hasFullAccess && (
+            <TabsContent value="stats" className="flex-grow">
+              <Card className="h-full">
+                {loading ? (
+                  <div className="flex justify-center py-8">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                  </div>
+                ) : (
+                  <BitacoraStats entries={entries} />
+                )}
               </Card>
+            </TabsContent>
+          )}
 
-              <Card className="flex flex-col">
-                <CardHeader>
-                  <CardTitle>Registros de Asistencia</CardTitle>
-                  <CardDescription>Historial de asistencias registradas.</CardDescription>
-                </CardHeader>
-                <CardContent className="flex-grow">
-                  {loadingAsistencias ? (
-                    <div className="flex justify-center py-8">
-                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-                    </div>
-                  ) : (
-                    <AsistenciaTable entries={asistencias} />
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
+          {hasFullAccess && (
+            <TabsContent value="asistencia" className="flex-grow">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Registrar Asistencia</CardTitle>
+                    <CardDescription>Registre la asistencia seleccionando el nombre, fecha y hora.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <AsistenciaForm onSubmit={addAsistenciaEntry} />
+                  </CardContent>
+                </Card>
+
+                <Card className="flex flex-col">
+                  <CardHeader>
+                    <CardTitle>Registros de Asistencia</CardTitle>
+                    <CardDescription>Historial de asistencias registradas.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex-grow">
+                    {loadingAsistencias ? (
+                      <div className="flex justify-center py-8">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                      </div>
+                    ) : (
+                      <AsistenciaTable entries={asistencias} />
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+          )}
         </Tabs>
 
         {/* Diálogo de edición */}
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="sm:max-w-[600px]">
-            <DialogHeader>
-              <DialogTitle>Editar Registro</DialogTitle>
-            </DialogHeader>
-            {editingEntry && <BitacoraForm onSubmit={handleUpdateEntry} initialData={editingEntry} isEditing={true} />}
-          </DialogContent>
-        </Dialog>
+        {hasFullAccess && (
+          <Dialog open={isEditDialogOpen} onOpenChange={handleCloseDialog}>
+            <DialogContent className="sm:max-w-[600px]">
+              <DialogHeader>
+                <DialogTitle>Editar Registro</DialogTitle>
+              </DialogHeader>
+              {editingEntry && (
+                <BitacoraForm onSubmit={handleUpdateEntry} initialData={editingEntry} isEditing={true} />
+              )}
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
     </div>
   )
