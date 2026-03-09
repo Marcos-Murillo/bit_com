@@ -1,7 +1,7 @@
 "use client"
 
 import { format } from "date-fns"
-import { CheckCircle, XCircle, Edit, ChevronLeft, ChevronRight, MoreVertical } from "lucide-react"
+import { CheckCircle, XCircle, Edit, ChevronLeft, ChevronRight, MoreVertical, Trash2 } from "lucide-react"
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table"
 import { Badge } from "../components/ui/badge"
 import { Button } from "../components/ui/button"
@@ -20,9 +20,10 @@ interface BitacoraTableProps {
   entries: BitacoraEntry[]
   onToggleComplete?: (id: string) => void
   onEdit?: (entry: BitacoraEntry) => void
+  onDelete?: (id: string) => void
 }
 
-export default function BitacoraTable({ entries, onToggleComplete, onEdit }: BitacoraTableProps) {
+export default function BitacoraTable({ entries, onToggleComplete, onEdit, onDelete }: BitacoraTableProps) {
   const [currentPage, setCurrentPage] = useState(1)
   const [categorias, setCategorias] = useState<Categoria[]>([])
   const itemsPerPage = 13
@@ -119,7 +120,7 @@ export default function BitacoraTable({ entries, onToggleComplete, onEdit }: Bit
   }
 
   // Determinar si mostrar la columna de acciones
-  const showActionsColumn = !!onToggleComplete || !!onEdit
+  const showActionsColumn = !!onToggleComplete || !!onEdit || !!onDelete
 
   return (
     <div className="rounded-md border overflow-visible">
@@ -223,6 +224,15 @@ export default function BitacoraTable({ entries, onToggleComplete, onEdit }: Bit
                                   Marcar completada
                                 </>
                               )}
+                            </DropdownMenuItem>
+                          )}
+                          {onDelete && (
+                            <DropdownMenuItem 
+                              onSelect={() => onDelete(entry.id)}
+                              className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Eliminar
                             </DropdownMenuItem>
                           )}
                         </DropdownMenuContent>

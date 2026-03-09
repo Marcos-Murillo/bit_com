@@ -22,6 +22,7 @@ import {
   toggleEntryComplete,
   getFilteredEntries,
   updateEntry,
+  deleteEntry,
 } from "../firebase/bitacora-service"
 import { getAllAsistencias, addAsistencia } from "../firebase/asistencia-service"
 import { getAllResponsables, getAllCategorias } from "../firebase/responsable-service"
@@ -180,6 +181,26 @@ export default function BitacoraPage() {
     }
   }
 
+  const handleDelete = async (id: string) => {
+    if (!confirm("¿Está seguro de que desea eliminar este registro? Esta acción no se puede deshacer.")) {
+      return
+    }
+
+    try {
+      await deleteEntry(id)
+
+      // Actualizar el estado local eliminando la entrada
+      const updatedEntries = entries.filter((entry) => entry.id !== id)
+      setEntries(updatedEntries)
+      setFilteredEntries((prevFiltered) => prevFiltered.filter((entry) => entry.id !== id))
+
+      toast.success("Registro eliminado correctamente")
+    } catch (error) {
+      console.error("Error al eliminar entrada:", error)
+      toast.error("No se pudo eliminar el registro")
+    }
+  }
+
   const isOverdue = (entry: BitacoraEntry) => {
     return !entry.completada && new Date(entry.fechaEntrega) < new Date()
   }
@@ -307,6 +328,7 @@ export default function BitacoraPage() {
                       entries={filteredEntries}
                       onToggleComplete={hasFullAccess ? handleToggleComplete : undefined}
                       onEdit={hasFullAccess ? handleEdit : undefined}
+                      onDelete={hasFullAccess ? handleDelete : undefined}
                     />
                   </div>
                 )}
