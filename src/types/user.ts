@@ -5,6 +5,7 @@ export interface User {
   nombre: string
   cedula: string
   role: UserRole
+  password?: string
   fechaCreacion: Date
 }
 

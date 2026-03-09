@@ -17,12 +17,12 @@ const convertFromFirestore = (doc: any): User => {
 }
 
 // Convertir a formato Firestore
-const convertToFirestore = (user: Omit<User, "id">) => {
+const convertToFirestore = (user: Omit<User, "id"> & { password: string }) => {
   return {
     nombre: user.nombre,
     cedula: user.cedula,
     role: user.role,
-    password: user.password || "",
+    password: user.password,
     fechaCreacion: Timestamp.fromDate(new Date(user.fechaCreacion)),
   }
 }
