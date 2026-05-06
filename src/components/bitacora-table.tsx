@@ -1,18 +1,11 @@
 "use client"
 
 import { format } from "date-fns"
-import { CheckCircle, XCircle, Edit, ChevronLeft, ChevronRight, MoreVertical, Trash2, Eye } from "lucide-react"
+import { CheckCircle, XCircle, Edit, ChevronLeft, ChevronRight, Trash2 } from "lucide-react"
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table"
 import { Badge } from "../components/ui/badge"
 import { Button } from "../components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "../components/ui/dropdown-menu"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog"
-import { Card, CardContent } from "../components/ui/card"
 import { useState, useEffect } from "react"
 import type { BitacoraEntry } from "../types/bitacora"
 import { getAllCategorias } from "../firebase/responsable-service"
@@ -263,94 +256,104 @@ export default function BitacoraTable({ entries, onToggleComplete, onEdit, onDel
         </Table>
       </div>
 
-      {/* Vista Mobile - Compacta */}
-      <div className="md:hidden">
-        <div className="divide-y">
-          {getCurrentEntries().length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No hay registros que coincidan con los filtros aplicados
-            </div>
-          ) : (
-            getCurrentEntries().map((entry) => (
-              <div
-                key={entry.id}
-                className={`p-3 ${isOverdue(entry) ? "bg-red-50" : entry.completada ? "bg-green-50" : "bg-yellow-50"} ${isGuestMode ? "cursor-pointer active:bg-gray-100" : ""}`}
-                onClick={() => isGuestMode && handleRowClick(entry)}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      {entry.completada ? (
-                        <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
-                      ) : (
-                        <XCircle className="h-4 w-4 text-red-600 flex-shrink-0" />
-                      )}
-                      <h3 className="font-medium text-sm truncate">{entry.titulo}</h3>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-gray-600 mb-1">
-                      <span>{format(new Date(entry.fechaEntrega), "dd/MM/yyyy")}</span>
-                      <span>•</span>
-                      <span className="truncate">{entry.responsable}</span>
-                    </div>
-                    <Badge className={`${getCategoryBadge(entry.categoria)} text-xs`}>
-                      {getCategoryLabel(entry.categoria)}
-                    </Badge>
+      {/* Vista Mobile - Cards Completos */}
+      <div className="md:hidden space-y-4 p-4">
+        {getCurrentEntries().length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            No hay registros que coincidan con los filtros aplicados
+          </div>
+        ) : (
+          getCurrentEntries().map((entry) => (
+            <div
+              key={entry.id}
+              className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                isOverdue(entry)
+                  ? "bg-red-50 border-red-300"
+                  : entry.completada
+                    ? "bg-green-50 border-green-300"
+                    : "bg-yellow-50 border-yellow-300"
+              }`}
+              onClick={() => isGuestMode && handleRowClick(entry)}
+            >
+              <div className="flex justify-between items-start mb-2">
+                <h3 className="font-bold text-lg flex-1">{entry.titulo}</h3>
+                {showActionsColumn && (
+                  <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                    {onEdit && (
+                      <Button variant="ghost" size="sm" onClick={() => onEdit(entry)} title="Editar">
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {onToggleComplete && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onToggleComplete(entry.id)}
+                        title={entry.completada ? "Marcar pendiente" : "Marcar completada"}
+                      >
+                        {entry.completada ? (
+                          <XCircle className="h-4 w-4 text-orange-600" />
+                        ) : (
+                          <CheckCircle className="h-4 w-4 text-green-600" />
+                        )}
+                      </Button>
+                    )}
+                    {onDelete && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onDelete(entry.id)}
+                        title="Eliminar"
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
-                  {showActionsColumn && (
-                    <div onClick={(e) => e.stopPropagation()}>
-                      <DropdownMenu modal={false}>
-                        <DropdownMenuTrigger asChild>
-                          <button 
-                            className="inline-flex items-center justify-center h-8 w-8 rounded-md hover:bg-gray-200 focus:outline-none"
-                            type="button"
-                            aria-label="Abrir menú de acciones"
-                          >
-                            <MoreVertical className="h-4 w-4" />
-                          </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-48" sideOffset={5}>
-                          {onEdit && (
-                            <DropdownMenuItem onSelect={() => onEdit(entry)}>
-                              <Edit className="h-4 w-4 mr-2" />
-                              Editar
-                            </DropdownMenuItem>
-                          )}
-                          {onToggleComplete && (
-                            <DropdownMenuItem onSelect={() => onToggleComplete(entry.id)}>
-                              {entry.completada ? (
-                                <>
-                                  <XCircle className="h-4 w-4 mr-2" />
-                                  Marcar pendiente
-                                </>
-                              ) : (
-                                <>
-                                  <CheckCircle className="h-4 w-4 mr-2" />
-                                  Marcar completada
-                                </>
-                              )}
-                            </DropdownMenuItem>
-                          )}
-                          {onDelete && (
-                            <DropdownMenuItem 
-                              onSelect={() => onDelete(entry.id)}
-                              className="text-red-600 focus:text-red-600 focus:bg-red-50"
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Eliminar
-                            </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  )}
-                  {isGuestMode && (
-                    <Eye className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                )}
+              </div>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Descripción:</span>
+                  <span className="font-medium text-right flex-1 ml-2">{entry.descripcion}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Fecha:</span>
+                  <span className="font-medium">{format(new Date(entry.fecha), "dd/MM/yyyy")}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Entrega:</span>
+                  <span className="font-medium">{format(new Date(entry.fechaEntrega), "dd/MM/yyyy")}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Responsable:</span>
+                  <span className="font-medium text-right">{entry.responsable}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Categoría:</span>
+                  <Badge className={getCategoryBadge(entry.categoria)}>{getCategoryLabel(entry.categoria)}</Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Estado:</span>
+                  {entry.completada ? (
+                    <span className="flex items-center text-green-600">
+                      <CheckCircle className="mr-1 h-4 w-4" /> Completada
+                    </span>
+                  ) : (
+                    <span className="flex items-center text-red-600">
+                      <XCircle className="mr-1 h-4 w-4" /> Pendiente
+                    </span>
                   )}
                 </div>
+                {isOverdue(entry) && (
+                  <Badge variant="destructive" className="w-full justify-center">
+                    VENCIDA
+                  </Badge>
+                )}
               </div>
-            ))
-          )}
-        </div>
+            </div>
+          ))
+        )}
       </div>
 
       {/* Paginación */}
@@ -425,74 +428,53 @@ export default function BitacoraTable({ entries, onToggleComplete, onEdit, onDel
         <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
-              <DialogTitle>Detalles del Registro</DialogTitle>
+              <DialogTitle>{selectedEntry.titulo}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
-              <Card>
-                <CardContent className="pt-6 space-y-3">
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">Título</label>
-                    <p className="text-base font-semibold">{selectedEntry.titulo}</p>
-                  </div>
-                  
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">Descripción</label>
-                    <p className="text-sm">{selectedEntry.descripcion}</p>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">Fecha del Evento</label>
-                      <p className="text-sm">{format(new Date(selectedEntry.fecha), "dd/MM/yyyy")}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">Fecha de Entrega</label>
-                      <p className="text-sm">{format(new Date(selectedEntry.fechaEntrega), "dd/MM/yyyy")}</p>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">Responsable</label>
-                    <p className="text-sm">{selectedEntry.responsable}</p>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">Categoría</label>
-                    <div className="mt-1">
-                      <Badge className={getCategoryBadge(selectedEntry.categoria)}>
-                        {getCategoryLabel(selectedEntry.categoria)}
-                      </Badge>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">Estado</label>
-                    <div className="mt-1">
-                      {selectedEntry.completada ? (
-                        <Badge className="bg-green-500">
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          Completada
-                        </Badge>
-                      ) : isOverdue(selectedEntry) ? (
-                        <Badge variant="destructive">
-                          <XCircle className="h-3 w-3 mr-1" />
-                          Vencida
-                        </Badge>
-                      ) : (
-                        <Badge className="bg-yellow-500">
-                          <XCircle className="h-3 w-3 mr-1" />
-                          Pendiente
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">Fecha de Creación</label>
-                    <p className="text-sm">{format(new Date(selectedEntry.fechaCreacion), "dd/MM/yyyy HH:mm")}</p>
-                  </div>
-                </CardContent>
-              </Card>
+              <div>
+                <span className="font-semibold">Descripción:</span>
+                <p className="text-sm text-gray-700 mt-1">{selectedEntry.descripcion}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <span className="font-semibold text-sm">Fecha del evento:</span>
+                  <p className="text-sm">{format(new Date(selectedEntry.fecha), "dd/MM/yyyy")}</p>
+                </div>
+                <div>
+                  <span className="font-semibold text-sm">Fecha de entrega:</span>
+                  <p className="text-sm">{format(new Date(selectedEntry.fechaEntrega), "dd/MM/yyyy")}</p>
+                </div>
+              </div>
+              <div>
+                <span className="font-semibold text-sm">Responsable:</span>
+                <p className="text-sm">{selectedEntry.responsable}</p>
+              </div>
+              <div>
+                <span className="font-semibold text-sm">Categoría:</span>
+                <div className="mt-1">
+                  <Badge className={getCategoryBadge(selectedEntry.categoria)}>
+                    {getCategoryLabel(selectedEntry.categoria)}
+                  </Badge>
+                </div>
+              </div>
+              <div>
+                <span className="font-semibold text-sm">Estado:</span>
+                <div className="mt-1">
+                  {selectedEntry.completada ? (
+                    <span className="flex items-center text-green-600">
+                      <CheckCircle className="mr-1 h-4 w-4" /> Completada
+                    </span>
+                  ) : (
+                    <span className="flex items-center text-red-600">
+                      <XCircle className="mr-1 h-4 w-4" /> Pendiente
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div>
+                <span className="font-semibold text-sm">Fecha de creación:</span>
+                <p className="text-sm">{format(new Date(selectedEntry.fechaCreacion), "dd/MM/yyyy HH:mm")}</p>
+              </div>
             </div>
           </DialogContent>
         </Dialog>
