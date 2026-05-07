@@ -6,6 +6,7 @@ export interface BitacoraEntry {
   descripcion: string
   responsable: string
   categoria: string
+  estado?: string
   fechaCreacion: Date
   completada: boolean
 }

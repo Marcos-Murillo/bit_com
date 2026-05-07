@@ -11,7 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import type { BitacoraEntry } from "../types/bitacora"
 import { useEffect, useState } from "react"
 import { getAllResponsables, getAllCategorias } from "../firebase/responsable-service"
+import { getAllEstados } from "../firebase/estado-service"
 import type { Responsable, Categoria } from "../types/responsable"
+import type { Estado } from "../types/estado"
 import { Loader2 } from "lucide-react"
 
 const formSchema = z.object({
@@ -29,6 +31,7 @@ const formSchema = z.object({
   categoria: z.string({
     required_error: "Por favor seleccione una categoría",
   }),
+  estado: z.string().optional(),
   completada: z.boolean().optional(),
 })
 
@@ -45,6 +48,7 @@ export default function BitacoraForm({ onSubmit, initialData, isEditing = false 
 
   const [responsables, setResponsables] = useState<Responsable[]>([])
   const [categorias, setCategorias] = useState<Categoria[]>([])
+  const [estados, setEstados] = useState<Estado[]>([])
   const [loading, setLoading] = useState(true)
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -56,18 +60,24 @@ export default function BitacoraForm({ onSubmit, initialData, isEditing = false 
       descripcion: "",
       responsable: "",
       categoria: "",
+      estado: "",
       completada: false,
     },
   })
 
-  // Cargar responsables y categorías desde Firebase
+  // Cargar responsables, categorías y estados desde Firebase
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true)
-        const [responsablesData, categoriasData] = await Promise.all([getAllResponsables(), getAllCategorias()])
+        const [responsablesData, categoriasData, estadosData] = await Promise.all([
+          getAllResponsables(),
+          getAllCategorias(),
+          getAllEstados()
+        ])
         setResponsables(responsablesData)
         setCategorias(categoriasData)
+        setEstados(estadosData)
       } catch (error) {
         console.error("Error al cargar datos:", error)
       } finally {
@@ -88,6 +98,7 @@ export default function BitacoraForm({ onSubmit, initialData, isEditing = false 
         descripcion: initialData.descripcion,
         responsable: initialData.responsable,
         categoria: initialData.categoria,
+        estado: initialData.estado || "",
         completada: initialData.completada,
       })
     }
@@ -112,6 +123,7 @@ export default function BitacoraForm({ onSubmit, initialData, isEditing = false 
         ...values,
         fecha: fechaDate,
         fechaEntrega: fechaEntregaDate,
+        estado: values.estado || undefined,
         fechaCreacion: initialData.fechaCreacion,
         completada: values.completada ?? initialData.completada,
       } as BitacoraEntry)
@@ -121,6 +133,7 @@ export default function BitacoraForm({ onSubmit, initialData, isEditing = false 
         ...values,
         fecha: fechaDate,
         fechaEntrega: fechaEntregaDate,
+        estado: values.estado || undefined,
         fechaCreacion: new Date(),
         completada: values.completada ?? false,
       } as BitacoraEntry)
@@ -134,6 +147,7 @@ export default function BitacoraForm({ onSubmit, initialData, isEditing = false 
         descripcion: "",
         responsable: "",
         categoria: "",
+        estado: "",
         completada: false,
       })
     }
@@ -243,6 +257,44 @@ export default function BitacoraForm({ onSubmit, initialData, isEditing = false 
             )}
           />
         </div>
+
+        <FormField
+          control={form.control}
+          name="estado"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Estado (Opcional)</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccione un estado" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent className="scrollable-dropdown">
+                  <SelectItem value="">Sin estado</SelectItem>
+                  {estados.length === 0 ? (
+                    <div className="px-2 py-4 text-sm text-gray-500 text-center">
+                      No hay estados disponibles
+                    </div>
+                  ) : (
+                    estados.map((estado) => (
+                      <SelectItem key={estado.id} value={estado.valor}>
+                        <div className="flex items-center gap-2">
+                          <div 
+                            className="w-3 h-3 rounded-full" 
+                            style={{ backgroundColor: estado.color }}
+                          />
+                          {estado.nombre}
+                        </div>
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
         <FormField
           control={form.control}

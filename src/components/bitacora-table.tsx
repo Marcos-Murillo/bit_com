@@ -9,7 +9,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/
 import { useState, useEffect } from "react"
 import type { BitacoraEntry } from "../types/bitacora"
 import { getAllCategorias } from "../firebase/responsable-service"
+import { getAllEstados } from "../firebase/estado-service"
 import type { Categoria } from "../types/responsable"
+import type { Estado } from "../types/estado"
 
 interface BitacoraTableProps {
   entries: BitacoraEntry[]
@@ -21,6 +23,7 @@ interface BitacoraTableProps {
 export default function BitacoraTable({ entries, onToggleComplete, onEdit, onDelete }: BitacoraTableProps) {
   const [currentPage, setCurrentPage] = useState(1)
   const [categorias, setCategorias] = useState<Categoria[]>([])
+  const [estados, setEstados] = useState<Estado[]>([])
   const [selectedEntry, setSelectedEntry] = useState<BitacoraEntry | null>(null)
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false)
   const itemsPerPage = 13
@@ -30,18 +33,22 @@ export default function BitacoraTable({ entries, onToggleComplete, onEdit, onDel
   const hasActions = !!onToggleComplete || !!onEdit || !!onDelete
   const isGuestMode = !hasActions
 
-  // Cargar categorías desde Firebase
+  // Cargar categorías y estados desde Firebase
   useEffect(() => {
-    const loadCategorias = async () => {
+    const loadData = async () => {
       try {
-        const data = await getAllCategorias()
-        setCategorias(data)
+        const [categoriasData, estadosData] = await Promise.all([
+          getAllCategorias(),
+          getAllEstados()
+        ])
+        setCategorias(categoriasData)
+        setEstados(estadosData)
       } catch (error) {
-        console.error("Error al cargar categorías:", error)
+        console.error("Error al cargar datos:", error)
       }
     }
 
-    loadCategorias()
+    loadData()
   }, [])
 
   const handleRowClick = (entry: BitacoraEntry) => {
@@ -127,6 +134,20 @@ export default function BitacoraTable({ entries, onToggleComplete, onEdit, onDel
     return !entry.completada && new Date(entry.fechaEntrega) < new Date()
   }
 
+  // Obtener el color del estado
+  const getEstadoColor = (estadoValor?: string): string => {
+    if (!estadoValor) return "#6b7280" // gris por defecto
+    const estado = estados.find((e) => e.valor === estadoValor)
+    return estado?.color || "#6b7280"
+  }
+
+  // Obtener el nombre del estado
+  const getEstadoNombre = (estadoValor?: string): string => {
+    if (!estadoValor) return "Sin estado"
+    const estado = estados.find((e) => e.valor === estadoValor)
+    return estado?.nombre || estadoValor
+  }
+
   // Determinar si mostrar la columna de acciones
   const showActionsColumn = !!onToggleComplete || !!onEdit || !!onDelete
 
@@ -158,99 +179,99 @@ export default function BitacoraTable({ entries, onToggleComplete, onEdit, onDel
                 </TableCell>
               </TableRow>
             ) : (
-              getCurrentEntries().map((entry) => (
-                <TableRow
-                  key={entry.id}
-                  className={`${isOverdue(entry) ? "bg-red-100" : entry.completada ? "bg-green-50" : "bg-yellow-50"} ${isGuestMode ? "cursor-pointer hover:bg-gray-100" : ""}`}
-                  onClick={() => isGuestMode && handleRowClick(entry)}
-                >
-                  <TableCell className="whitespace-nowrap">{format(new Date(entry.fecha), "dd/MM/yyyy")}</TableCell>
-                  <TableCell className="whitespace-nowrap">
-                    {format(new Date(entry.fechaEntrega), "dd/MM/yyyy")}
-                    {isOverdue(entry) && (
-                      <Badge variant="destructive" className="ml-2">
-                        Vencida
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="font-medium truncate max-w-[250px]" title={entry.titulo}>
-                      {entry.titulo}
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1 truncate max-w-[250px]" title={entry.descripcion}>
-                      {entry.descripcion}
-                    </div>
-                  </TableCell>
-                  <TableCell className="truncate max-w-[180px]" title={entry.responsable}>
-                    {entry.responsable}
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={getCategoryBadge(entry.categoria)}>{getCategoryLabel(entry.categoria)}</Badge>
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap">
-                    {entry.completada ? (
-                      <span className="flex items-center text-green-600">
-                        <CheckCircle className="mr-1 h-4 w-4" /> Completada
-                      </span>
-                    ) : (
-                      <span className="flex items-center text-red-600">
-                        <XCircle className="mr-1 h-4 w-4" /> Pendiente
-                      </span>
-                    )}
-                  </TableCell>
-                  {showActionsColumn && (
-                    <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
-                      <DropdownMenu modal={false}>
-                        <DropdownMenuTrigger asChild>
-                          <button 
-                            className="inline-flex items-center justify-center h-8 w-8 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-400"
-                            type="button"
-                            aria-label="Abrir menú de acciones"
-                          >
-                            <MoreVertical className="h-4 w-4" />
-                          </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-48" sideOffset={5}>
+              getCurrentEntries().map((entry) => {
+                const estadoColor = entry.estado ? getEstadoColor(entry.estado) : null
+                const rowBgColor = estadoColor 
+                  ? `rgba(${parseInt(estadoColor.slice(1, 3), 16)}, ${parseInt(estadoColor.slice(3, 5), 16)}, ${parseInt(estadoColor.slice(5, 7), 16)}, 0.1)`
+                  : (isOverdue(entry) ? "bg-red-100" : entry.completada ? "bg-green-50" : "bg-yellow-50")
+                
+                return (
+                  <TableRow
+                    key={entry.id}
+                    className={`${!estadoColor ? rowBgColor : ""} ${isGuestMode ? "cursor-pointer hover:bg-gray-100" : ""}`}
+                    style={estadoColor ? { backgroundColor: rowBgColor } : undefined}
+                    onClick={() => isGuestMode && handleRowClick(entry)}
+                  >
+                    <TableCell className="whitespace-nowrap">{format(new Date(entry.fecha), "dd/MM/yyyy")}</TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      {format(new Date(entry.fechaEntrega), "dd/MM/yyyy")}
+                      {isOverdue(entry) && !entry.estado && (
+                        <Badge variant="destructive" className="ml-2">
+                          Vencida
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-medium truncate max-w-[250px]" title={entry.titulo}>
+                        {entry.titulo}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1 truncate max-w-[250px]" title={entry.descripcion}>
+                        {entry.descripcion}
+                      </div>
+                    </TableCell>
+                    <TableCell className="truncate max-w-[180px]" title={entry.responsable}>
+                      {entry.responsable}
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={getCategoryBadge(entry.categoria)}>{getCategoryLabel(entry.categoria)}</Badge>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      {entry.estado ? (
+                        <Badge 
+                          className="text-white"
+                          style={{ backgroundColor: getEstadoColor(entry.estado) }}
+                        >
+                          {getEstadoNombre(entry.estado)}
+                        </Badge>
+                      ) : entry.completada ? (
+                        <span className="flex items-center text-green-600">
+                          <CheckCircle className="mr-1 h-4 w-4" /> Completada
+                        </span>
+                      ) : (
+                        <span className="flex items-center text-red-600">
+                          <XCircle className="mr-1 h-4 w-4" /> Pendiente
+                        </span>
+                      )}
+                    </TableCell>
+                    {showActionsColumn && (
+                      <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-center gap-1">
                           {onEdit && (
-                            <DropdownMenuItem 
-                              onSelect={() => onEdit(entry)}
-                            >
-                              <Edit className="h-4 w-4 mr-2" />
-                              Editar
-                            </DropdownMenuItem>
+                            <Button variant="ghost" size="sm" onClick={() => onEdit(entry)} title="Editar">
+                              <Edit className="h-4 w-4" />
+                            </Button>
                           )}
                           {onToggleComplete && (
-                            <DropdownMenuItem 
-                              onSelect={() => onToggleComplete(entry.id)}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => onToggleComplete(entry.id)}
+                              title={entry.completada ? "Marcar pendiente" : "Marcar completada"}
                             >
                               {entry.completada ? (
-                                <>
-                                  <XCircle className="h-4 w-4 mr-2" />
-                                  Marcar pendiente
-                                </>
+                                <XCircle className="h-4 w-4 text-orange-600" />
                               ) : (
-                                <>
-                                  <CheckCircle className="h-4 w-4 mr-2" />
-                                  Marcar completada
-                                </>
+                                <CheckCircle className="h-4 w-4 text-green-600" />
                               )}
-                            </DropdownMenuItem>
+                            </Button>
                           )}
                           {onDelete && (
-                            <DropdownMenuItem 
-                              onSelect={() => onDelete(entry.id)}
-                              className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => onDelete(entry.id)}
+                              title="Eliminar"
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
                             >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Eliminar
-                            </DropdownMenuItem>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  )}
-                </TableRow>
-              ))
+                        </div>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                )
+              })
             )}
           </TableBody>
         </Table>
@@ -263,96 +284,111 @@ export default function BitacoraTable({ entries, onToggleComplete, onEdit, onDel
             No hay registros que coincidan con los filtros aplicados
           </div>
         ) : (
-          getCurrentEntries().map((entry) => (
-            <div
-              key={entry.id}
-              className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                isOverdue(entry)
-                  ? "bg-red-50 border-red-300"
-                  : entry.completada
-                    ? "bg-green-50 border-green-300"
-                    : "bg-yellow-50 border-yellow-300"
-              }`}
-              onClick={() => isGuestMode && handleRowClick(entry)}
-            >
-              <div className="flex justify-between items-start mb-2">
-                <h3 className="font-bold text-lg flex-1">{entry.titulo}</h3>
-                {showActionsColumn && (
-                  <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                    {onEdit && (
-                      <Button variant="ghost" size="sm" onClick={() => onEdit(entry)} title="Editar">
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                    )}
-                    {onToggleComplete && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onToggleComplete(entry.id)}
-                        title={entry.completada ? "Marcar pendiente" : "Marcar completada"}
-                      >
-                        {entry.completada ? (
-                          <XCircle className="h-4 w-4 text-orange-600" />
-                        ) : (
-                          <CheckCircle className="h-4 w-4 text-green-600" />
-                        )}
-                      </Button>
-                    )}
-                    {onDelete && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onDelete(entry.id)}
-                        title="Eliminar"
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                )}
-              </div>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Descripción:</span>
-                  <span className="font-medium text-right flex-1 ml-2">{entry.descripcion}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Fecha:</span>
-                  <span className="font-medium">{format(new Date(entry.fecha), "dd/MM/yyyy")}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Entrega:</span>
-                  <span className="font-medium">{format(new Date(entry.fechaEntrega), "dd/MM/yyyy")}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Responsable:</span>
-                  <span className="font-medium text-right">{entry.responsable}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Categoría:</span>
-                  <Badge className={getCategoryBadge(entry.categoria)}>{getCategoryLabel(entry.categoria)}</Badge>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Estado:</span>
-                  {entry.completada ? (
-                    <span className="flex items-center text-green-600">
-                      <CheckCircle className="mr-1 h-4 w-4" /> Completada
-                    </span>
-                  ) : (
-                    <span className="flex items-center text-red-600">
-                      <XCircle className="mr-1 h-4 w-4" /> Pendiente
-                    </span>
+          getCurrentEntries().map((entry) => {
+            const estadoColor = entry.estado ? getEstadoColor(entry.estado) : null
+            const cardBgColor = estadoColor || (isOverdue(entry) ? "#fecaca" : entry.completada ? "#bbf7d0" : "#fef08a")
+            const borderColor = estadoColor || (isOverdue(entry) ? "#fca5a5" : entry.completada ? "#86efac" : "#fde047")
+            
+            return (
+              <div
+                key={entry.id}
+                className="p-4 rounded-lg border-2 cursor-pointer transition-all"
+                style={{ 
+                  backgroundColor: cardBgColor,
+                  borderColor: borderColor
+                }}
+                onClick={() => isGuestMode && handleRowClick(entry)}
+              >
+                <div className="flex justify-between items-start mb-2">
+                  <h3 className="font-bold text-lg flex-1">{entry.titulo}</h3>
+                  {showActionsColumn && (
+                    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                      {onEdit && (
+                        <Button variant="ghost" size="sm" onClick={() => onEdit(entry)} title="Editar">
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {onToggleComplete && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onToggleComplete(entry.id)}
+                          title={entry.completada ? "Marcar pendiente" : "Marcar completada"}
+                        >
+                          {entry.completada ? (
+                            <XCircle className="h-4 w-4 text-orange-600" />
+                          ) : (
+                            <CheckCircle className="h-4 w-4 text-green-600" />
+                          )}
+                        </Button>
+                      )}
+                      {onDelete && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onDelete(entry.id)}
+                          title="Eliminar"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                   )}
                 </div>
-                {isOverdue(entry) && (
-                  <Badge variant="destructive" className="w-full justify-center">
-                    VENCIDA
-                  </Badge>
-                )}
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Descripción:</span>
+                    <span className="font-medium text-right flex-1 ml-2">{entry.descripcion}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Fecha:</span>
+                    <span className="font-medium">{format(new Date(entry.fecha), "dd/MM/yyyy")}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Entrega:</span>
+                    <span className="font-medium">{format(new Date(entry.fechaEntrega), "dd/MM/yyyy")}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Responsable:</span>
+                    <span className="font-medium text-right">{entry.responsable}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Categoría:</span>
+                    <Badge className={getCategoryBadge(entry.categoria)}>{getCategoryLabel(entry.categoria)}</Badge>
+                  </div>
+                  {entry.estado && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Estado:</span>
+                      <Badge 
+                        className="text-white"
+                        style={{ backgroundColor: getEstadoColor(entry.estado) }}
+                      >
+                        {getEstadoNombre(entry.estado)}
+                      </Badge>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Completada:</span>
+                    {entry.completada ? (
+                      <span className="flex items-center text-green-600">
+                        <CheckCircle className="mr-1 h-4 w-4" /> Sí
+                      </span>
+                    ) : (
+                      <span className="flex items-center text-red-600">
+                        <XCircle className="mr-1 h-4 w-4" /> No
+                      </span>
+                    )}
+                  </div>
+                  {isOverdue(entry) && !entry.estado && (
+                    <Badge variant="destructive" className="w-full justify-center">
+                      VENCIDA
+                    </Badge>
+                  )}
+                </div>
               </div>
-            </div>
-          ))
+            )
+          })
         )}
       </div>
 
@@ -457,16 +493,29 @@ export default function BitacoraTable({ entries, onToggleComplete, onEdit, onDel
                   </Badge>
                 </div>
               </div>
+              {selectedEntry.estado && (
+                <div>
+                  <span className="font-semibold text-sm">Estado:</span>
+                  <div className="mt-1">
+                    <Badge 
+                      className="text-white"
+                      style={{ backgroundColor: getEstadoColor(selectedEntry.estado) }}
+                    >
+                      {getEstadoNombre(selectedEntry.estado)}
+                    </Badge>
+                  </div>
+                </div>
+              )}
               <div>
-                <span className="font-semibold text-sm">Estado:</span>
+                <span className="font-semibold text-sm">Completada:</span>
                 <div className="mt-1">
                   {selectedEntry.completada ? (
                     <span className="flex items-center text-green-600">
-                      <CheckCircle className="mr-1 h-4 w-4" /> Completada
+                      <CheckCircle className="mr-1 h-4 w-4" /> Sí
                     </span>
                   ) : (
                     <span className="flex items-center text-red-600">
-                      <XCircle className="mr-1 h-4 w-4" /> Pendiente
+                      <XCircle className="mr-1 h-4 w-4" /> No
                     </span>
                   )}
                 </div>

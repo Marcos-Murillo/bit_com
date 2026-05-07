@@ -19,7 +19,13 @@ import {
   getAllCategorias,
   deleteCategoria,
 } from "../../firebase/responsable-service"
+import {
+  createEstado,
+  getAllEstados,
+  deleteEstado,
+} from "../../firebase/estado-service"
 import type { Responsable, Categoria } from "../../types/responsable"
+import type { Estado } from "../../types/estado"
 
 export default function AdminPage() {
   const { user, logout } = useAuth()
@@ -37,6 +43,13 @@ export default function AdminPage() {
   const [categorias, setCategorias] = useState<Categoria[]>([])
   const [loadingCategorias, setLoadingCategorias] = useState(true)
 
+  // Estados
+  const [nombreEstado, setNombreEstado] = useState("")
+  const [colorEstado, setColorEstado] = useState("#3b82f6")
+  const [loadingEstado, setLoadingEstado] = useState(false)
+  const [estados, setEstados] = useState<Estado[]>([])
+  const [loadingEstados, setLoadingEstados] = useState(true)
+
   useEffect(() => {
     if (!user || user.role === "guest") {
       router.push("/login")
@@ -45,6 +58,7 @@ export default function AdminPage() {
     } else {
       loadResponsables()
       loadCategorias()
+      loadEstados()
     }
   }, [user, router])
 
@@ -67,6 +81,17 @@ export default function AdminPage() {
       toast.error("Error al cargar categorías")
     } finally {
       setLoadingCategorias(false)
+    }
+  }
+
+  const loadEstados = async () => {
+    try {
+      const data = await getAllEstados()
+      setEstados(data)
+    } catch (error) {
+      toast.error("Error al cargar estados")
+    } finally {
+      setLoadingEstados(false)
     }
   }
 
@@ -128,6 +153,35 @@ export default function AdminPage() {
     }
   }
 
+  const handleCreateEstado = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoadingEstado(true)
+
+    try {
+      await createEstado(nombreEstado, colorEstado)
+      toast.success("Estado creado exitosamente")
+      setNombreEstado("")
+      setColorEstado("#3b82f6")
+      loadEstados()
+    } catch (error) {
+      toast.error("Error al crear estado")
+    } finally {
+      setLoadingEstado(false)
+    }
+  }
+
+  const handleDeleteEstado = async (id: string) => {
+    if (!confirm("¿Está seguro de eliminar este estado?")) return
+
+    try {
+      await deleteEstado(id)
+      toast.success("Estado eliminado")
+      loadEstados()
+    } catch (error) {
+      toast.error("Error al eliminar estado")
+    }
+  }
+
   if (!user || user.role !== "admin") {
     return null
   }
@@ -149,9 +203,10 @@ export default function AdminPage() {
         </div>
 
         <Tabs defaultValue="responsables" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="responsables">Responsables</TabsTrigger>
             <TabsTrigger value="categorias">Categorías</TabsTrigger>
+            <TabsTrigger value="estados">Estados</TabsTrigger>
           </TabsList>
 
           <TabsContent value="responsables">
@@ -323,6 +378,132 @@ export default function AdminPage() {
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => handleDeleteCategoria(categoria.id)}
+                                  >
+                                    <Trash2 className="h-4 w-4 text-red-500" />
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="estados">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Crear Estado</CardTitle>
+                  <CardDescription>Agregue un nuevo estado con color personalizado</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleCreateEstado} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="nombreEstado">
+                        Nombre del Estado <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        id="nombreEstado"
+                        type="text"
+                        placeholder="Ej: EN PROCESO"
+                        value={nombreEstado}
+                        onChange={(e) => setNombreEstado(e.target.value.toUpperCase())}
+                        required
+                        disabled={loadingEstado}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="colorEstado">
+                        Color del Estado <span className="text-red-500">*</span>
+                      </Label>
+                      <div className="flex gap-3 items-center">
+                        <Input
+                          id="colorEstado"
+                          type="color"
+                          value={colorEstado}
+                          onChange={(e) => setColorEstado(e.target.value)}
+                          className="w-20 h-10 cursor-pointer"
+                          disabled={loadingEstado}
+                        />
+                        <div className="flex-1">
+                          <div 
+                            className="h-10 rounded-md border flex items-center justify-center font-medium text-white"
+                            style={{ backgroundColor: colorEstado }}
+                          >
+                            Vista previa
+                          </div>
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        Este color se mostrará en las tareas con este estado
+                      </p>
+                    </div>
+                    <Button type="submit" className="w-full" disabled={loadingEstado}>
+                      {loadingEstado ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Creando...
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="mr-2 h-4 w-4" />
+                          Crear Estado
+                        </>
+                      )}
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Lista de Estados</CardTitle>
+                  <CardDescription>Estados registrados en el sistema</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {loadingEstados ? (
+                    <div className="flex justify-center py-8">
+                      <Loader2 className="h-8 w-8 animate-spin" />
+                    </div>
+                  ) : (
+                    <div className="rounded-md border">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Nombre</TableHead>
+                            <TableHead className="w-[120px]">Color</TableHead>
+                            <TableHead className="w-[100px]">Acciones</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {estados.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={3} className="text-center py-6 text-muted-foreground">
+                                No hay estados registrados
+                              </TableCell>
+                            </TableRow>
+                          ) : (
+                            estados.map((estado) => (
+                              <TableRow key={estado.id}>
+                                <TableCell className="font-medium">{estado.nombre}</TableCell>
+                                <TableCell>
+                                  <div 
+                                    className="h-8 rounded-md border flex items-center justify-center text-xs font-medium text-white"
+                                    style={{ backgroundColor: estado.color }}
+                                  >
+                                    {estado.color}
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDeleteEstado(estado.id)}
                                   >
                                     <Trash2 className="h-4 w-4 text-red-500" />
                                   </Button>
